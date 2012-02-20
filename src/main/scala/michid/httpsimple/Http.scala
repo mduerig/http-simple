@@ -16,10 +16,16 @@ import org.apache.http.client.methods.{HttpPut, HttpPost, HttpGet}
 object Http {
   val httpClient = new DefaultHttpClient()
 
-  def apply(request: Request): HttpResponse = request match {
-    case Get(credentials, uri) => get(credentials, uri)
-    case Post(credentials, uri, entity) => post(credentials, uri, entity)
-    case Put(credentials, uri, entity) => put(credentials, uri, entity)
+  def apply[T](request: Request, responseHandler: HttpResponse => T): T = request match {
+    case Get(credentials, uri) =>
+      handleResponse(get(credentials, uri), responseHandler)
+
+    case Post(credentials, uri, entity) =>
+      handleResponse(post(credentials, uri, entity), responseHandler)
+
+    case Put(credentials, uri, entity) =>
+      handleResponse(put(credentials, uri, entity), responseHandler)
+
     case _ => sys.error("Unknown request: " + request)
   }
 
@@ -50,6 +56,15 @@ object Http {
       httpContext
     }
   }
+
+  private def handleResponse[T](response: HttpResponse, responseHandler: HttpResponse => T) = {
+    try {
+      responseHandler(response)
+    }
+    finally {
+      response.getEntity.getContent.close()
+    }
+  }
 }
 
 sealed trait Request
@@ -61,9 +76,9 @@ case class Post(credential: Option[(String, String)], uri: URI, entity: HttpEnti
 case class Put(credential: Option[(String, String)], uri: URI, entity: HttpEntity) extends Request
 
 object Response {
-  def unapply(httpResponse: HttpResponse): Option[(Int, String)] = {
+  def unapply(httpResponse: HttpResponse): Option[(Int, String, HttpResponse)] = {
     val status = httpResponse.getStatusLine
-    Some((status.getStatusCode, status.getReasonPhrase))
+    Some((status.getStatusCode, status.getReasonPhrase, httpResponse))
   }
 }
 
@@ -81,6 +96,14 @@ object Post {
 
   def apply(credentials: (String, String), uri: String, entity: File, contentType: String): Request =
     Post(Some(credentials), URI.create(uri), new FileEntity(entity, contentType))
+
+  def apply(uri: String): Request = {
+    Post(None, URI.create(uri), formParams(Nil))
+  }
+
+  def apply(credentials: (String, String), uri: String): Request = {
+    Post(Some(credentials), URI.create(uri), formParams(Nil))
+  }
 
   def apply(uri: String, entity: List[(String, String)]): Request = {
     Post(None, URI.create(uri), formParams(entity))
