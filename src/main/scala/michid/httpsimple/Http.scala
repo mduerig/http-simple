@@ -11,7 +11,7 @@ import org.apache.http.protocol.BasicHttpContext
 import org.apache.http.{HttpResponse, HttpEntity}
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.client.entity.UrlEncodedFormEntity
-import org.apache.http.client.methods.{HttpPut, HttpPost, HttpGet}
+import org.apache.http.client.methods.{HttpDelete, HttpPut, HttpPost, HttpGet}
 
 object Http {
   val httpClient = new DefaultHttpClient()
@@ -26,10 +26,13 @@ object Http {
     case Put(credentials, uri, entity) =>
       handleResponse(put(credentials, uri, entity), responseHandler)
 
+    case Delete(credentials, uri) =>
+      handleResponse(delete(credentials, uri), responseHandler)
+
     case _ => sys.error("Unknown request: " + request)
   }
 
-  private def get(credentials: Option[(String, String)], uri: URI): HttpResponse = {
+  private def get(credentials: Option[(String, String)], uri: URI) = {
     httpClient.execute(new HttpGet(uri), buildContext(credentials).getOrElse(null))
   }
 
@@ -43,6 +46,10 @@ object Http {
     val put = new HttpPut(uri)
     put.setEntity(entity)
     httpClient.execute(put, buildContext(credentials).getOrElse(null))
+  }
+  
+  private def delete(credentials: Option[(String, String)], uri: URI) = {
+    httpClient.execute(new HttpDelete(uri), buildContext(credentials).getOrElse(null))
   }
 
   private def buildContext(credentials: Option[(String, String)]) = credentials.map {
@@ -68,12 +75,10 @@ object Http {
 }
 
 sealed trait Request
-
 case class Get(credential: Option[(String, String)], uri: URI) extends Request
-
 case class Post(credential: Option[(String, String)], uri: URI, entity: HttpEntity) extends Request
-
 case class Put(credential: Option[(String, String)], uri: URI, entity: HttpEntity) extends Request
+case class Delete(credential: Option[(String, String)], uri: URI) extends Request
 
 object Response {
   def unapply(httpResponse: HttpResponse): Option[(Int, String, HttpResponse)] = {
@@ -129,5 +134,14 @@ object Put {
 
   def apply(credentials: (String, String), uri: String, entity: File, contentType: String): Request =
     Put(Some(credentials), URI.create(uri), new FileEntity(entity, contentType))
+}
+
+object Delete {
+  def apply(uri: String): Request =
+    Delete(None, URI.create(uri))
+
+  def apply(credentials: (String, String), uri: String): Request =
+    Delete(Some(credentials), URI.create(uri))
+
 }
 
