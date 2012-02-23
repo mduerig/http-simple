@@ -12,6 +12,7 @@ import org.apache.http.{HttpResponse, HttpEntity}
 import org.apache.http.message.BasicNameValuePair
 import org.apache.http.client.entity.UrlEncodedFormEntity
 import org.apache.http.client.methods.{HttpDelete, HttpPut, HttpPost, HttpGet}
+import collection.JavaConversions._
 
 object Http {
   val httpClient = new DefaultHttpClient()
@@ -96,44 +97,21 @@ object Get {
 }
 
 object Post {
-  def apply(uri: String, entity: File, contentType: String): Request =
-    Post(None, URI.create(uri), new FileEntity(entity, contentType))
-
-  def apply(credentials: (String, String), uri: String, entity: File, contentType: String): Request =
-    Post(Some(credentials), URI.create(uri), new FileEntity(entity, contentType))
-
-  def apply(uri: String): Request = {
-    Post(None, URI.create(uri), formParams(Nil))
+  def apply(uri: String, entity: HttpEntity): Request = {
+    Post(None, URI.create(uri), entity)
   }
 
-  def apply(credentials: (String, String), uri: String): Request = {
-    Post(Some(credentials), URI.create(uri), formParams(Nil))
-  }
-
-  def apply(uri: String, entity: List[(String, String)]): Request = {
-    Post(None, URI.create(uri), formParams(entity))
-  }
-
-  def apply(credentials: (String, String), uri: String, entity: List[(String, String)]): Request = {
-    Post(Some(credentials), URI.create(uri), formParams(entity))
-  }
-
-  private def formParams(entity: List[(String, String)]) = {
-    val params = entity.map {
-      case (name, value) => new BasicNameValuePair(name, value)
-    }
-
-    import scala.collection.JavaConversions._
-    new UrlEncodedFormEntity(params, "UTF-8")
+  def apply(credentials: (String, String), uri: String, entity: HttpEntity): Request = {
+    Post(Some(credentials), URI.create(uri), entity)
   }
 }
 
 object Put {
-  def apply(uri: String, entity: File, contentType: String): Request =
-    Put(None, URI.create(uri), new FileEntity(entity, contentType))
+  def apply(uri: String, entity: HttpEntity): Request =
+    Put(None, URI.create(uri), entity)
 
-  def apply(credentials: (String, String), uri: String, entity: File, contentType: String): Request =
-    Put(Some(credentials), URI.create(uri), new FileEntity(entity, contentType))
+  def apply(credentials: (String, String), uri: String, entity: HttpEntity): Request =
+    Put(Some(credentials), URI.create(uri), entity)
 }
 
 object Delete {
@@ -142,6 +120,17 @@ object Delete {
 
   def apply(credentials: (String, String), uri: String): Request =
     Delete(Some(credentials), URI.create(uri))
+}
 
+object Entity {
+  def apply(file: File, contentType: String) = new FileEntity(file, contentType)
+
+  def apply(values: List[(String, String)]) = {
+    val params = values.map {
+      case (name, value) => new BasicNameValuePair(name, value)
+    }
+
+    new UrlEncodedFormEntity(params, "UTF-8")
+  }
 }
 
