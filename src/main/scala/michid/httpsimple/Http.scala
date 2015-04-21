@@ -70,7 +70,7 @@ object Http {
       responseHandler(response)
     }
     finally {
-      response.getEntity.getContent.close()
+      Option(response.getEntity).foreach(_.getContent.close())
     }
   }
 }
